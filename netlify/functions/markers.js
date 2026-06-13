@@ -8,6 +8,17 @@ const { getStore } = require("@netlify/blobs");
 const STORE_NAME = "commons-sewer-markers";
 const KEY = "markers";
 
+function getMarkersStore() {
+  // On Netlify's own infrastructure, getStore(name) is auto-configured.
+  // If env vars for manual config are present (e.g. local/dev), use those.
+  const siteID = process.env.NETLIFY_SITE_ID;
+  const token = process.env.NETLIFY_BLOBS_TOKEN || process.env.NETLIFY_API_TOKEN;
+  if (siteID && token) {
+    return getStore({ name: STORE_NAME, siteID, token });
+  }
+  return getStore(STORE_NAME);
+}
+
 exports.handler = async (event) => {
   const headers = {
     "Access-Control-Allow-Origin": "*",
@@ -20,7 +31,12 @@ exports.handler = async (event) => {
     return { statusCode: 204, headers, body: "" };
   }
 
-  const store = getStore(STORE_NAME);
+  let store;
+  try {
+    store = getMarkersStore();
+  } catch (err) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: "Store init failed: " + err.message }) };
+  }
 
   if (event.httpMethod === "GET") {
     try {
